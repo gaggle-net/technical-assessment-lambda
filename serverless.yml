@@ -1,0 +1,17 @@
+service: gaggleTechnicalAssessment
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+package:
+  individually: true
+plugins:
+  - serverless-plugin-typescript
+functions:
+  meanMedianMode:
+    handler: src/lambdas/postStatistics/index.handler
+    events:
+      - http:
+          method: post
+          path: /statistics
