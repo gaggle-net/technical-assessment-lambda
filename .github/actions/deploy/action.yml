@@ -1,0 +1,147 @@
+name: 'Deploy the project'
+description: Deploy the project using CDK
+inputs:
+  ref:
+    required: false
+    description: the git ref of the code that was built and deployed
+  env:
+    required: true
+    description: the environment to deploy
+  artifact-path:
+    required: false
+    description: path to download the artifact to
+  artifact-key:
+    required: false
+    description: the key where artifacts where uploaded
+    default: 'artifact'
+  account: 
+    required: true
+    description: the AWS account to deploy to
+  github-token:
+    required: true
+    description: the github token
+  artifactory-username:
+    required: true
+    description: the username to authenticate against artifactory
+  artifactory-api-key:
+    required: true
+    description: the artifactory api key to authenticate against artifactory
+  crq-enabled:
+    required: false
+    description: set to true to open/close CRQs as part of deployment
+    default: false
+  use-sandbox-crq:
+    required: false
+    description: set to true to create a sandbox crq (for testing)
+    default: false
+  slack-webhook:
+    required: false
+    description: Slack webhook needed to send slack notifications
+  slack-channel:
+    required: false
+    description: The slack channel to send notifications to
+  node-version-file:
+    required: false
+    description: the path to the node version file
+    default: 'infra/.node-version'
+  component: 
+    required: false
+    description: the component to deploy
+  region:
+    required: false
+    description: the region to deploy
+    default: us-east-1
+runs:
+  using: composite
+  steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: ${{ inputs.artifact-key }}
+        path: ${{ inputs.artifact-path }}
+    - run: ls -l restapi/target
+      shell: bash
+    - uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
+        MSG_MINIMAL: 'true'
+        SLACK_COLOR: 'success'
+        SLACK_CHANNEL: ${{ inputs.slack-channel }}
+        SLACK_TITLE: On Demand Deployment Pipeline Started
+        SLACK_MESSAGE: '${{ inputs.env }}  ${{ inputs.region }} - Build Started: ${{ github.event.repository.name }} ${{ github.run_number}} (<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Open>)'
+        SLACK_USERNAME: 'GithubActions'
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd infrastructure
+
+    - name: Read ComponentId
+      id: read-component-id
+      shell: bash
+      run: echo '::set-output name=COMPONENT_ID::'`cat .componentId`
+    - name: Open CRQ
+      id: open-crq
+      uses: org-actions/crq-action/.github/actions/open-crq@v1.2.0
+      if: ${{ inputs.crq-enabled == 'true' }}
+      with:
+        component-id: ${{ steps.read-component-id.outputs.COMPONENT_ID }}
+        short-description: "Deploy ${{ github.event.repository.name }} ${{ inputs.env }} to ${{ inputs.region }}"
+        description: "Deploy ${{ github.event.repository.name }} ${{ inputs.env }} to ${{ inputs.region }}: ${{ inputs.sha }}"
+        repo-token: ${{ inputs.github-token }}
+        extra-args: ${{ inputs.use-sandbox-crq && '--sandbox' || '' }}
+    - name: Determine Component Stack
+      id: determine-component-stack
+      shell: bash
+      run: |
+        if [[ ${{ inputs.component }} == 'all' ]]; then
+          echo '::set-output name=COMPONENT_STACK::--all'
+        else
+          echo '::set-output name=COMPONENT_STACK::App-${{ inputs.component }}-${{ inputs.env }}'
+        fi
+    - name: Establish secure session to AWS
+      uses: org-actions/aws-secure-access@v1
+      with:
+        account: ${{ inputs.account }}
+        region: ${{ inputs.region }}
+    - name: Deploy
+      shell: bash
+      env:
+        GIT_SHA: ${{ inputs.ref }}
+        AWS_REGION: ${{ inputs.region }}
+        ENV: ${{ inputs.env }}
+      run: |
+        cd infra
+        cdk diff ${{ steps.determine-component-stack.outputs.COMPONENT_STACK }}
+        cdk deploy -- --require-approval=never ${{ steps.determine-component-stack.outputs.COMPONENT_STACK }}
+    - name: Check Deploy Failure
+      if: ${{ failure() }}
+      id: check-deploy-failure
+      shell: bash
+      run: echo '::set-output name=DEPLOY_FAILED::true'
+    - name: Close CRQ
+      if: ${{ always() && steps.open-crq.outputs.crq-number }}
+      id: close-crq
+      uses: org-actions/crq-action/.github/actions/close-crq@v1.2.0
+      with:
+        crq-number: ${{ steps.open-crq.outputs.crq-number }}
+        notes: ${{ steps.check-deploy-failure.outputs.DEPLOY_FAILED == 'true'  && 'CICD - Failed' || 'Successful' }}
+        close-code: ${{ steps.check-deploy-failure.outputs.DEPLOY_FAILED == 'true'  && 'CICD - Failed' || 'Successful' }}
+        repo-token: ${{ inputs.github-token }}
+        extra-args: ${{ inputs.use-sandbox-crq && '--sandbox' || '' }}
+    - name: Slack Notification Deployment Done
+      if: always()
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
+        MSG_MINIMAL: 'true'
+        SLACK_COLOR: ${{ steps.check-deploy-failure.outputs.DEPLOY_FAILED == 'true' && 'failure' || 'success' }}
+        SLACK_CHANNEL: 'app-integrations'
+        SLACK_TITLE: On Demand Deployment Pipeline Finished
+        SLACK_MESSAGE: "${{ inputs.env }} ${{ inputs.region }} - Build is ${{ github.action_status }}: ${{ github.event.repository.name }} ${{ github.run_number}} (<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Open>)"
+        SLACK_USERNAME: 'GithubActions'
+        GITHUB_SERVER_URL: ${{ github.server_url }}

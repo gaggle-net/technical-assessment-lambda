@@ -1,0 +1,30 @@
+name: Run tests on pull request
+
+on:
+  pull_request:
+    branches:
+      - 'development'
+
+jobs:
+  test:
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit-id }}
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: 'infra/.node-version'
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+      - name: Setup Maven
+        uses: stCarolas/setup-maven@v4.3
+        with:
+          maven-version: 3.5.4
+      - name: Run Tests
+        shell: bash
+        run: |
+          ARTIFACTORY_USR=${{ secrets.ARTIFACTORY_USERNAME }} ARTIFACTORY_API=${{ secrets.ARTIFACTORY_API_KEY }} mvn -s settings.xml test

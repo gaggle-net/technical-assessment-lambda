@@ -1,0 +1,91 @@
+name: Deploy on demand
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: choice
+        description: What environment to deploy?
+        options:
+          - qa
+          - uat
+          - stage
+          - prod
+      region:
+        required: true
+        type: choice
+        description: What region to deploy?
+        options:
+          - both
+          - us-east-1
+          - us-west-2
+      component:
+        required: true
+        type: choice
+        description: Which component(s)?
+        options:
+          - apigateway
+          - Lambda
+      commit-id:
+        required: false
+        type: string
+        description: The GIT ref that you want to deploy
+
+jobs:
+  debug:
+    steps:
+      - name: Log inputs
+        run: echo environment ${{ github.event.inputs.environment }}, component ${{ github.event.inputs.component }}, gitsha ${{ github.sha }}, commit ${{ github.event.inputs.commit-id }}, region ${{ github.event.inputs.region }}
+  build:
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit-id }}
+      - uses: ./.github/actions/build
+        with:
+          artifactory-username: ${{ secrets.ARTIFACTORY_USERNAME }}
+          artifactory-api-key: ${{ secrets.ARTIFACTORY_API_KEY }}
+          artifact-path: /target/*.jar
+  deploy-east:
+    needs: build
+    if: ${{ github.event.inputs.region == 'both' || github.event.inputs.region == 'us-east-1' }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit-id }}
+      - uses: ./.github/actions/deploy
+        with:
+          ref: ${{ github.event.inputs.commit-id  || github.sha }}
+          env: ${{ github.event.inputs.environment }}
+          artifact-path: /target/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          account: ${{ (github.event.inputs.environment == 'stage' || github.event.inputs.environment == 'prod') && 1111111 || 99999999 }}
+          artifactory-username: ${{ secrets.ARTIFACTORY_USERNAME }}
+          artifactory-api-key: ${{ secrets.ARTIFACTORY_API_KEY }}
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          crq-enabled: ${{ github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'uat' }}
+          use-sandbox-crq: ${{ github.event.inputs.environment == 'uat' }}
+          component: ${{ github.event.inputs.component }}
+          region: us-east-1
+  deploy-west:
+    needs: build
+    if: ${{ github.event.inputs.region == 'both' || github.event.inputs.region == 'us-west-2' }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit-id }}
+      - uses: ./.github/actions/deploy
+        with:
+          ref: ${{ github.event.inputs.commit-id  || github.sha }}
+          env: ${{ github.event.inputs.environment }}
+          artifact-path: /target/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          account: ${{ (github.event.inputs.environment == 'stage' || github.event.inputs.environment == 'prod') && 11111111 || 99999999 }}
+          artifactory-username: ${{ secrets.ARTIFACTORY_USERNAME }}
+          artifactory-api-key: ${{ secrets.ARTIFACTORY_API_KEY }}
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          crq-enabled: ${{ github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'uat' }}
+          use-sandbox-crq: ${{ github.event.inputs.environment == 'uat' }}
+          component: ${{ github.event.inputs.component }}
+          region: us-west-2
