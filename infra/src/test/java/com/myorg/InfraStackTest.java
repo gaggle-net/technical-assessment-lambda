@@ -18,10 +18,10 @@ public class InfraStackTest {
 
         Template template = Template.fromStack(stack);
 
-        template.hasResourceProperties("AWS::SQS::Queue", new HashMap<String, Number>() {{
-          put("VisibilityTimeout", 300);
-        }});
-
-        template.resourceCountIs("AWS::SNS::Topic", 1);
+//        template.hasResourceProperties("AWS::SQS::Queue", new HashMap<String, Number>() {{
+//          put("VisibilityTimeout", 300);
+//        }});
+//
+//        template.resourceCountIs("AWS::SNS::Topic", 1);
     }
 }

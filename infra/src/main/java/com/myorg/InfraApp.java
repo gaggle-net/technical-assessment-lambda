@@ -6,7 +6,7 @@ public final class InfraApp {
     public static void main(final String[] args) {
         App app = new App();
 
-        new InfraStack(app, "InfraStack");
+        new InfraStack(app, "lambda-httpapi-stack");
 
         app.synth();
     }

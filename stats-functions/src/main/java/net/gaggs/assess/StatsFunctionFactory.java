@@ -13,7 +13,7 @@ public class StatsFunctionFactory {
     static HashMap<String, IStatsFunction> mapStatsTypeVsFunc;
 
     static {
-        mapStatsTypeVsFunc = new HashMap<>();
+        mapStatsTypeVsFunc = new HashMap<String, IStatsFunction>();
         mapStatsTypeVsFunc.put("MEAN", new MeanFunction());
         mapStatsTypeVsFunc.put("MEDIAN", new MedianFunction());
         mapStatsTypeVsFunc.put("MODE", new ModeFunction());
