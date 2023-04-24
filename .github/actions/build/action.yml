@@ -1,0 +1,38 @@
+name: 'Build the project'
+description: Build the project
+inputs:
+  artifactory-username:
+    description: username to authenticate against artifactory
+    required: true
+  artifactory-api-key:
+    description: api key to authenticate against artifactory
+    required: true
+  artifact-path:
+    description: one or more paths containing artifacts that should be saved
+    required: false
+  artifact-key:
+    description: the key that artifacts are saved under, and can be retrieved from later.  Default 'artifacts'
+    required: false
+    default: 'artifact'
+runs:
+  using: composite
+  steps:
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: '8'
+        distribution: 'adopt'
+    - name: Setup Maven
+      uses: stCarolas/setup-maven@v4.3
+      with:
+        maven-version: 3.5.4
+    - name: Build Artifacts
+      shell: bash
+      run: |
+        ARTIFACTORY_USR=${{ inputs.artifactory-username }} ARTIFACTORY_API=${{ inputs.artifactory-api-key }} mvn -s settings.xml package
+    - name: Save Artifacts
+      if: ${{ inputs.artifact-path }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ inputs.artifact-key }}
+        path: ${{ inputs.artifact-path }}
