@@ -1,20 +1,31 @@
-# Take Home Challenge: AWS Lambda
-This exercise is meant to showcase your technical implementation & design abilities. 
-**It is expected that you will fork this repository in GitHub** and share the link with us when complete. Please be prepared to explain the design.
+So I did not get this project completed to my satisfaction, but I did promise to
+finish by today, so I am bookmarking it here.  I will continue working on it on 
+my own, so I learn all the things I need for a basic understanding.  My problem 
+is not the coding per se, but the Lambda interface to AWS - getting everything 
+permissioned and exposed to the user to run.
 
-For the purposes of the exercise, pretend you're on a team working on a new website that customers can use to look up information about music. Other team members are handling the front end, but you're working on the back-end API.
+That said, I did learn about AWS and a lot of this I didn't previously know
 
-## Instructions
+* creating an AWS account 
+* getting an account ID and secret
+* setting up the credentials file locally
+* creating users
+* groups
+* permissioning all the things!!! <--- this was a toughie
+* roles
+* using the CLI for AWS and SAM
+* creating a project from the commandline
+* setting up my AWS Gateway
+* creating the Lambdas with and without triggers
+* s3 buckets
+* ... many more things
 
-Write an *AWS Lambda that* can return the Mean, Median and Mode of a series of numbers.
-Please include instructions on how to run, test and deploy your code.
+You'll see in the code that my idea is to take in the "driver" file from s3 bucket as a list 
+of strings.  Basically, my thought was to have one string per line, but they would be numbers
+that I could convert in the project and run through each lambda function one after another or 
+individually.  I have a function for each mean, mode, median and the calculations
+are proved out in the spock table tests specification file.
 
-### Language
-
-The languages you may submit this challenge include:
-
-* Java
-* Go
-* Rust
-* Python
-* Typescript
+Sorry, I have to leave this for now - I have other commitments, but I am glad I 
+took the time to learn this much.  I will continue working on this or my own
+edification - so thanks for giving me an objective and a time cutoff.
